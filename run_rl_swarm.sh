@@ -1,22 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# 禁用CUDA和GPU检测
-export CUDA_VISIBLE_DEVICES=""
-export CUDA_DEVICE_ORDER=""
-export CUDA_LAUNCH_BLOCKING=""
-export PYTORCH_CUDA_ALLOC_CONF=""
-export CPU_ONLY=1
-export USE_CPU=1
-
-# 禁用GPU相关库
-export PYTORCH_NO_CUDA_MEMORY_CACHING=1
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
-
-# 强制使用CPU
-export FORCE_CUDA=0
-export CUDA_HOME=""
-
 # General arguments
 ROOT=$PWD
 export IDENTITY_PATH

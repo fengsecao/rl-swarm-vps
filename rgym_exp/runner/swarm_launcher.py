@@ -1,23 +1,4 @@
-#!/usr/bin/env python3
-
 import os
-import sys
-
-# 强制禁用CUDA和GPU检测
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-os.environ["CUDA_DEVICE_ORDER"] = ""
-os.environ["CUDA_LAUNCH_BLOCKING"] = ""
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = ""
-os.environ["CPU_ONLY"] = "1"
-os.environ["USE_CPU"] = "1"
-os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
-os.environ["FORCE_CUDA"] = "0"
-os.environ["CUDA_HOME"] = ""
-
-# 在导入torch之前设置
-import torch
-torch.cuda.is_available = lambda: False
-torch.cuda.device_count = lambda: 0
 
 import hydra
 from genrl.communication.communication import Communication
