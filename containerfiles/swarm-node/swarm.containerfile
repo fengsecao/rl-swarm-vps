@@ -62,6 +62,17 @@ WORKDIR /home/gensyn/rl_swarm
 ENV DOCKER=t
 ENV IDENTITY_PATH=/home/gensyn/rl_swarm/keys/swarm.pem
 
+# 禁用CUDA和GPU检测
+ENV CUDA_VISIBLE_DEVICES=""
+ENV CUDA_DEVICE_ORDER=""
+ENV CUDA_LAUNCH_BLOCKING=""
+ENV PYTORCH_CUDA_ALLOC_CONF=""
+ENV CPU_ONLY=1
+ENV USE_CPU=1
+ENV PYTORCH_NO_CUDA_MEMORY_CACHING=1
+ENV FORCE_CUDA=0
+ENV CUDA_HOME=""
+
 COPY --chown=gensyn . /home/gensyn/rl_swarm
 
 CMD [ "bash", "-c", "/home/gensyn/rl_swarm/auto_run.sh" ]
