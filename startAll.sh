@@ -102,7 +102,7 @@ arrange_window "nexus" $((x1+quickq_width+spacing)) $nexus_ritual_y $lower_item_
 # arrange_window "Ritual" $((x1+quickq_width+lower_item_width+2*spacing)) $nexus_ritual_y $lower_item_width $nexus_ritual_height
 
 # 8. 排列VPN窗口（最左下角，底部与nexus对齐，长度1/2，宽度2/3）
-arrange_window "quickq" $x1 $quickq_y $quickq_width $quickq_height
+# arrange_window "quickq" $x1 $quickq_y $quickq_width $quickq_height
 
 echo "✅ 所有项目已启动完成！"
 echo "   - Docker已在后台运行"
