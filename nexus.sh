@@ -21,12 +21,10 @@ case "$OS" in
       if [[ "$ID" == "ubuntu" ]]; then
         OS_TYPE="Ubuntu"
       else
-        echo -e "${RED}不支持的操作系统: $ID。本脚本仅支持 macOS 和 Ubuntu。${NC}"
-        exit 1
+        OS_TYPE="Linux"
       fi
     else
-      echo -e "${RED}不支持的操作系统: 未检测到 /etc/os-release。本脚本仅支持 macOS 和 Ubuntu。${NC}"
-      exit 1
+      OS_TYPE="Linux"
     fi
     ;;
   *) echo -e "${RED}不支持的操作系统: $OS。本脚本仅支持 macOS 和 Ubuntu。${NC}" ; exit 1 ;;
@@ -92,6 +90,36 @@ rotate_log() {
   fi
 }
 
+# 安装 Homebrew（macOS 和非 Ubuntu Linux）
+install_homebrew() {
+  print_header "检查 Homebrew 安装"
+  if check_command brew; then
+    return
+  fi
+  echo -e "${BLUE}在 $OS_TYPE 上安装 Homebrew...${NC}"
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+    echo -e "${RED}安装 Homebrew 失败，请检查网络连接或权限。${NC}"
+    exit 1
+  }
+  if [[ "$OS_TYPE" == "macOS" ]]; then
+    configure_shell "/opt/homebrew/bin"
+  else
+    configure_shell "$HOME/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/bin"
+    if ! check_command gcc; then
+      echo -e "${BLUE}在 Linux 上安装 gcc（Homebrew 依赖）...${NC}"
+      if command -v yum &> /dev/null; then
+        sudo yum groupinstall 'Development Tools' || {
+          echo -e "${RED}安装 gcc 失败，请手动安装 Development Tools。${NC}"
+          exit 1
+        }
+      else
+        echo -e "${RED}不支持的包管理器，请手动安装 gcc。${NC}"
+        exit 1
+      fi
+    fi
+  fi
+}
+
 # 安装基础依赖（仅 Ubuntu）
 install_dependencies() {
   if [[ "$OS_TYPE" == "Ubuntu" ]]; then
@@ -102,22 +130,6 @@ install_dependencies() {
       echo -e "${RED}安装依赖工具失败，请检查网络连接或权限。${NC}"
       exit 1
     }
-  fi
-}
-
-# 安装 Homebrew（仅 macOS）
-install_homebrew() {
-  if [[ "$OS_TYPE" == "macOS" ]]; then
-    print_header "检查 Homebrew 安装"
-    if check_command brew; then
-      return
-    fi
-    echo -e "${BLUE}在 $OS_TYPE 上安装 Homebrew...${NC}"
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
-      echo -e "${RED}安装 Homebrew 失败，请检查网络连接或权限。${NC}"
-      exit 1
-    }
-    configure_shell "/opt/homebrew/bin"
   fi
 }
 
@@ -232,6 +244,11 @@ cleanup_exit() {
 
 # 重启时的清理函数
 cleanup_restart() {
+  # 重启前清理日志
+  if [[ -f "$LOG_FILE" ]]; then
+    rm -f "$LOG_FILE"
+    echo -e "${YELLOW}已清理旧日志文件 $LOG_FILE${NC}"
+  fi
   log "${YELLOW}准备重启节点，先进行清理...${NC}"
   if screen -list | grep -q "nexus_node"; then
     log "${BLUE}正在终止 nexus_node screen 会话...${NC}"
@@ -287,11 +304,11 @@ install_nexus_cli() {
     echo "export PATH=\"$HOME/.cargo/bin:\$PATH\"" > "$CONFIG_FILE"
     log "${YELLOW}未检测到 $CONFIG_FILE，已自动生成并写入 PATH 变量。${NC}"
   fi
-  # 重新加载配置文件以确保环境变量生效
+  # 更新CLI后加载环境变量
   source "$CONFIG_FILE" 2>/dev/null && log "${GREEN}已自动加载 $CONFIG_FILE 环境变量。${NC}" || log "${YELLOW}未能自动加载 $CONFIG_FILE，请手动执行 source $CONFIG_FILE。${NC}"
-  # 额外加载 .zshrc 确保所有环境变量生效
+  # 额外加载.zshrc确保环境变量生效
   if [[ -f "$HOME/.zshrc" ]]; then
-    source "$HOME/.zshrc" 2>/dev/null && log "${GREEN}已重新加载 .zshrc 配置文件。${NC}" || log "${YELLOW}未能重新加载 .zshrc，请手动执行 source ~/.zshrc。${NC}"
+    source "$HOME/.zshrc" 2>/dev/null && log "${GREEN}已额外加载 ~/.zshrc 环境变量。${NC}" || log "${YELLOW}未能加载 ~/.zshrc，请手动执行 source ~/.zshrc。${NC}"
   fi
   if [[ "$success" == false ]]; then
     log "${RED}Nexus CLI 安装/更新失败 $max_attempts 次，将尝试使用当前版本运行节点。${NC}"
@@ -313,6 +330,7 @@ get_node_id() {
     CURRENT_NODE_ID=$(jq -r .node_id "$CONFIG_PATH" 2>/dev/null)
     if [[ -n "$CURRENT_NODE_ID" && "$CURRENT_NODE_ID" != "null" ]]; then
       log "${GREEN}检测到配置文件中的 Node ID：$CURRENT_NODE_ID${NC}"
+      # 使用 read -t 5 实现 5 秒超时，默认选择 y
       echo -e "${BLUE}是否使用此 Node ID? (y/n, 默认 y，5 秒后自动继续): ${NC}"
       use_old_id=""
       read -t 5 -r use_old_id
@@ -379,8 +397,12 @@ start_node() {
 
 # 主循环
 main() {
-  install_dependencies
-  install_homebrew
+  if [[ "$OS_TYPE" == "Ubuntu" ]]; then
+    install_dependencies
+  fi
+  if [[ "$OS_TYPE" == "macOS" || "$OS_TYPE" == "Linux" ]]; then
+    install_homebrew
+  fi
   install_cmake
   install_protobuf
   install_rust
@@ -389,11 +411,6 @@ main() {
   while true; do
     cleanup_restart
     install_nexus_cli
-    # 新增：重启前清理日志
-    if [[ -f "$LOG_FILE" ]]; then
-      rm -f "$LOG_FILE"
-      echo -e "${YELLOW}已清理旧日志文件：$LOG_FILE${NC}"
-    fi
     start_node
     log "${BLUE}节点将每隔 4 小时自动重启...${NC}"
     sleep 14400
