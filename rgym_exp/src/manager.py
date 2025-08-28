@@ -1,6 +1,4 @@
-import logging
 import os
-import sys
 import time
 from collections import defaultdict
 
@@ -19,6 +17,7 @@ from genrl.trainer import TrainerModule
 from huggingface_hub import login, whoami
 
 from rgym_exp.src.utils.name_utils import get_name_from_peer_id
+from rgym_exp.src.prg_module import PRGModule
 
 
 class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
@@ -61,21 +60,13 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
         self.peer_id = self.communication.get_id()
         self.state.peer_id = self.peer_id
         self.animal_name = get_name_from_peer_id(self.peer_id, True)
-        format_msg = f"[{self.animal_name}] %(asctime)s %(levelname)s: %(message)s"
-        logging.basicConfig(level=logging.INFO, format=format_msg)
-        formatter = logging.Formatter(format_msg)
-        file_handler = logging.FileHandler(
-            os.path.join(log_dir, f"training_{self.animal_name}.log")
-        )
-        file_handler.setFormatter(formatter)
-        _LOG = get_logger()
-        _LOG.addHandler(file_handler)
 
         # Register peer_id and get current round from the chain
         self.coordinator = coordinator
         self.coordinator.register_peer(self.peer_id)
         round, _ = self.coordinator.get_round_and_stage()
         self.state.round = round
+
         self.communication.step_ = (
             self.state.round
         )  # initialize communication module to contract's round
@@ -83,17 +74,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
         # enable push to HF if token was provided
         self.hf_token = hf_token
         if self.hf_token not in [None, "None"]:
-            username = whoami(token=self.hf_token)["name"]
-            model_name = self.trainer.model.config.name_or_path.split("/")[-1]
-            model_name += "-Gensyn-Swarm"
-            model_name += f"-{self.animal_name}"
-            self.trainer.args.hub_model_id = f"{username}/{model_name}"
-            self.trainer.args.push_to_hub = True
-            self.trainer.args.hub_token = self.hf_token
-            self.hf_push_frequency = hf_push_frequency
-            get_logger().info("Logging into Hugging Face Hub...")
-
-            login(self.hf_token)
+            self._configure_hf_hub(hf_push_frequency)
 
         get_logger().info(
             f"🐱 Hello 🐈 [{get_name_from_peer_id(self.peer_id)}] 🦮 [{self.peer_id}]!"
@@ -105,9 +86,13 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
             f.write(get_system_info())
 
         self.batched_signals = 0.0
-        self.time_since_submit = time.time() #seconds
-        self.submit_period = 3.0 #hours
+        self.time_since_submit = time.time()  # seconds
+        self.submit_period = 1.0  # hours
         self.submitted_this_round = False
+
+        # PRG Game
+        self.prg_module = PRGModule(log_dir, **kwargs)
+        self.prg_game = self.prg_module.prg_game
 
     def _get_total_rewards_by_agent(self):
         rewards_by_agent = defaultdict(int)
@@ -129,9 +114,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
             my_signal = signal_by_agent[self.peer_id]
         else:
             my_signal = 0
-        my_signal = (my_signal + 1) * (my_signal > 0) + my_signal * (
-            my_signal <= 0
-        )
+        my_signal = (my_signal + 1) * (my_signal > 0) + my_signal * (my_signal <= 0)
         return my_signal
 
     def _try_submit_to_chain(self, signal_by_agent):
@@ -143,23 +126,19 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                 )
                 self.batched_signals = 0.0
                 if len(signal_by_agent) > 0:
-                    max_agent, max_signal = max(signal_by_agent.items(), key=lambda x: x[1])
-                else: # if we have no signal_by_agents, just submit ourselves.
+                    max_agent, max_signal = max(
+                        signal_by_agent.items(), key=lambda x: x[1]
+                    )
+                else:  # if we have no signal_by_agents, just submit ourselves.
                     max_agent = self.peer_id
 
-                self.coordinator.submit_winners(self.state.round, [max_agent], self.peer_id)
+                self.coordinator.submit_winners(
+                    self.state.round, [max_agent], self.peer_id
+                )
                 self.time_since_submit = time.time()
                 self.submitted_this_round = True
             except Exception as e:
-                get_logger().exception(
-                    "Failed to submit to chain.\n"
-                    "This is most likely transient and will recover.\n"
-                    "There is no need to kill the program.\n"
-                    "If you encounter this error, please report it to Gensyn by\n"
-                    "filing a github issue here: https://github.com/gensyn-ai/rl-swarm/issues/ \n"
-                    "including the full stacktrace."
-                )
-
+                get_logger().debug(str(e))
 
     def _hook_after_rewards_updated(self):
         signal_by_agent = self._get_total_rewards_by_agent()
@@ -167,13 +146,20 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
         self._try_submit_to_chain(signal_by_agent)
 
     def _hook_after_round_advanced(self):
+        if self.prg_game:
+            # TODO: Ideally I think the judge client request question bit should come in the manager and the trainer should be doing only PyTorch-y stuff, 
+            # but I have kept it consistent with the evaluate function for now.
+            prg_history_dict = self.prg_module.prg_history_dict
+            results_dict = self.trainer.play_prg_game_logits(prg_history_dict)
+            self.prg_module.play_prg_game(results_dict, self.peer_id)
+
         self._save_to_hf()
 
         # Try to submit to chain again if necessary, but don't update our signal twice
         if not self.submitted_this_round:
             signal_by_agent = self._get_total_rewards_by_agent()
             self._try_submit_to_chain(signal_by_agent)
-        
+
         # Reset flag for next round
         self.submitted_this_round = False
 
@@ -183,6 +169,16 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
     def _hook_after_game(self):
         self._save_to_hf()
 
+    def _configure_hf_hub(self, hf_push_frequency):
+        username = whoami(token=self.hf_token)["name"]
+        model_name = self.trainer.model.config.name_or_path.split("/")[-1]
+        model_name += "-Gensyn-Swarm"
+        model_name += f"-{self.animal_name}"
+        self.trainer.args.hub_model_id = f"{username}/{model_name}"
+        self.hf_push_frequency = hf_push_frequency
+        get_logger().info("Logging into Hugging Face Hub...")
+        login(self.hf_token)
+
     def _save_to_hf(self):
         if (
             self.hf_token not in [None, "None"]
@@ -191,8 +187,6 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
             get_logger().info(f"pushing model to huggingface")
             try:
                 repo_id = self.trainer.args.hub_model_id
-                if repo_id is None:
-                    repo_id = Path(self.trainer.args.output_dir).name
 
                 self.trainer.model.push_to_hub(
                     repo_id=repo_id,
