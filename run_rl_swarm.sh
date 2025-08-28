@@ -247,7 +247,7 @@ echo_green ">> Done!"
 # echo -en $RESET_TEXT
 
 # 强制设置模型名称
-MODEL_NAME="Qwen/Qwen3-0.6B"
+MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct"
 export MODEL_NAME
 echo_green ">> Using model: $MODEL_NAME"
 echo_green ">> Models will not be pushed to Hugging Face Hub"
