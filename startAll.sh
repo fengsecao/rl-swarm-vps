@@ -68,9 +68,13 @@ nexus_ritual_height=$((lower_height-30))  # nexus和Ritual高度减小30px
 nexus_ritual_y=$((lower_y+5))  # nexus和Ritual向下移动5px
 quickq_y=$((nexus_ritual_y+nexus_ritual_height-quickq_height))  # quickq底部与nexus对齐
 
-# wai宽度缩小1/2，高度保持不变（1倍）
-wai_width=$((upper_item_width/2))  # wai宽度缩小为原来1/2
-wai_height=$upper_height  # wai高度保持不变
+# # wai宽度缩小1/2，高度保持不变（1倍）
+# wai_width=$((upper_item_width/2))  # wai宽度缩小为原来1/2
+# wai_height=$upper_height  # wai高度保持不变
+
+# dria宽度缩小1/2，高度保持不变（1倍）
+dria_width=$((upper_item_width/2))  # dria宽度缩小为原来1/2
+dria_height=$upper_height  # dria高度保持不变
 
 # 3. 启动Docker（不新建终端窗口）
 echo "✅ 正在后台启动Docker..."
@@ -86,17 +90,22 @@ osascript -e 'tell app "Terminal" to do script "until docker info >/dev/null 2>&
 sleep 1
 arrange_window "gensyn" $((x1+upper_item_width/2)) $y1 $upper_item_width $upper_height
 
-# 5. 启动wai（上层右侧，向右偏移半个身位，宽度缩小1/2，高度不变）
-osascript -e 'tell app "Terminal" to do script "~/rl-swarm-vps/wai.sh"'
+# # 5. 启动wai（上层右侧，向右偏移半个身位，宽度缩小1/2，高度不变）
+# osascript -e 'tell app "Terminal" to do script "~/rl-swarm-vps/wai.sh"'
+# sleep 1
+# arrange_window "wai" $((x1+upper_item_width+spacing+upper_item_width/2)) $y1 $wai_width $wai_height
+
+# 5. 启动dria（上层右侧，向右偏移半个身位，宽度缩小1/2，高度不变）
+osascript -e 'tell app "Terminal" to do script "~/rl-swarm-vps/dria.sh"'
 sleep 1
-arrange_window "wai" $((x1+upper_item_width+spacing+upper_item_width/2)) $y1 $wai_width $wai_height
+arrange_window "dria" $((x1+quickq_width+lower_item_width+2*spacing)) $y1 $dria_width $dria_height
 
 # 6. 启动nexus（下层中间，高度减小30px，向下移动5px）
 osascript -e 'tell app "Terminal" to do script "~/rl-swarm-vps/nexus.sh"'
 sleep 1
 arrange_window "nexus" $((x1+quickq_width+spacing)) $nexus_ritual_y $lower_item_width $nexus_ritual_height
 
-# # 7. 启动Ritual（下层右侧，高度减小30px，向下移动5px）
+# 7. 启动Ritual（下层右侧，高度减小30px，向下移动5px）
 # osascript -e 'tell app "Terminal" to do script "~/rl-swarm-vps/ritual.sh"'
 # sleep 1
 # arrange_window "Ritual" $((x1+quickq_width+lower_item_width+2*spacing)) $nexus_ritual_y $lower_item_width $nexus_ritual_height
