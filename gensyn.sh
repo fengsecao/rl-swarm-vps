@@ -105,16 +105,40 @@ main() {
     
     # 询问是否清除 Docker 环境
     echo -e "\n[提问] 是否要清理 Docker 环境？这将删除所有容器、镜像、卷和缓存。\n"
-    echo -e "请在 5 秒内输入 'y' 确认清理，否则将继续使用现有环境...\c"
+    echo -e "请在 5 秒内输入 'y' 确认清理，默认不清理...\c"
     
-    # 设置 5 秒超时的读取
-    read -t 5 clean_confirm
+    # 使用非阻塞读取和倒计时，参考 wai.sh 中的实现方式
+    clean_confirm="n"  # 默认不清理
+    timeout=5
+    
+    # 启用输入
+    stty -echoctl  # 不显示控制字符
+    
+    # 设置倒计时
+    echo -n "[倒计时: ${timeout}s]" >&2
+    
+    while [ $timeout -gt 0 ]; do
+        # 尝试读取一个字符，不等待
+        read -r -n 1 -t 1 input
+        if [ $? -eq 0 ]; then
+            clean_confirm="$input"
+            break
+        fi
+        
+        timeout=$((timeout-1))
+        echo -en "\r[倒计时: ${timeout}s]" >&2
+    done
+    
+    echo -e "\n" >&2
+    
+    # 恢复终端设置
+    stty echoctl
     
     # 如果用户输入 y 或 Y，则清理环境
     if [[ "$clean_confirm" == "y" ]] || [[ "$clean_confirm" == "Y" ]]; then
         docker_cleanup
     else
-        echo -e "\n[INFO] 继续使用现有 Docker 环境..."
+        echo -e "[INFO] 继续使用现有 Docker 环境..."
     fi
 
     # 进入目录
