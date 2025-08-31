@@ -103,42 +103,22 @@ main() {
     # 启动 Docker
     start_docker
     
-    # 询问是否清除 Docker 环境
+    # 询问是否清除 Docker 环境 - 参考 nexus.sh 中的可靠实现
     echo -e "\n[提问] 是否要清理 Docker 环境？这将删除所有容器、镜像、卷和缓存。\n"
-    echo -e "请在 5 秒内输入 'y' 确认清理，默认不清理...\c"
+    echo -e "请在 5 秒内输入 'y' 确认清理，默认不清理（5 秒后自动继续）: \c"
     
-    # 使用非阻塞读取和倒计时，参考 wai.sh 中的实现方式
-    clean_confirm="n"  # 默认不清理
-    timeout=5
+    # 使用 read -t 5 实现 5 秒超时，默认不清理
+    clean_confirm="n"
+    read -t 5 -r clean_confirm || true
     
-    # 启用输入
-    stty -echoctl  # 不显示控制字符
-    
-    # 设置倒计时
-    echo -n "[倒计时: ${timeout}s]" >&2
-    
-    while [ $timeout -gt 0 ]; do
-        # 尝试读取一个字符，不等待
-        read -r -n 1 -t 1 input
-        if [ $? -eq 0 ]; then
-            clean_confirm="$input"
-            break
-        fi
-        
-        timeout=$((timeout-1))
-        echo -en "\r[倒计时: ${timeout}s]" >&2
-    done
-    
-    echo -e "\n" >&2
-    
-    # 恢复终端设置
-    stty echoctl
+    # 规范化输入（如果为空则保持默认值n）
+    clean_confirm=${clean_confirm:-n}
     
     # 如果用户输入 y 或 Y，则清理环境
     if [[ "$clean_confirm" == "y" ]] || [[ "$clean_confirm" == "Y" ]]; then
         docker_cleanup
     else
-        echo -e "[INFO] 继续使用现有 Docker 环境..."
+        echo -e "\n[INFO] 继续使用现有 Docker 环境..."
     fi
 
     # 进入目录
