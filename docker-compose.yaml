@@ -48,7 +48,6 @@ services:
       resources:
         limits:
           cpus: '6'
-          memory: 16G
 
   # Requires the NVIDIA Drivers version >=525.60.13 to be installed, as well
   # as the nvidia-container-toolkit.
