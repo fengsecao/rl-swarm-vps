@@ -5,6 +5,37 @@ log_file="./deploy_rl_swarm_vps.log"
 max_retries=10
 retry_count=0
 
+# 清理 Docker 环境
+docker_cleanup() {
+    info "开始清理 Docker 环境..."
+    
+    # 停止所有运行中的容器
+    info "停止所有容器..."
+    docker stop $(docker ps -aq) 2>/dev/null || true
+    
+    # 删除所有容器
+    info "删除所有容器..."
+    docker rm $(docker ps -aq) 2>/dev/null || true
+    
+    # 删除所有镜像
+    info "删除所有镜像..."
+    docker rmi $(docker images -aq) 2>/dev/null || true
+    
+    # 清理未使用的数据卷
+    info "清理未使用的数据卷..."
+    docker volume prune -f 2>/dev/null || true
+    
+    # 清理未使用的网络
+    info "清理未使用的网络..."
+    docker network prune -f 2>/dev/null || true
+    
+    # 清理构建缓存
+    info "清理构建缓存..."
+    docker builder prune -af 2>/dev/null || true
+    
+    info "Docker 环境清理完成！"
+}
+
 info() {
     echo -e "[$(date +"%Y-%m-%d %T")] [INFO] $*" | tee -a "$log_file"
 }
@@ -71,6 +102,24 @@ main() {
 
     # 启动 Docker
     start_docker
+    
+    # 询问是否清除 Docker 环境 - 参考 nexus.sh 中的可靠实现
+    echo -e "\n[提问] 是否要清理 Docker 环境？这将删除所有容器、镜像、卷和缓存。\n"
+    echo -e "请在 5 秒内输入 'y' 确认清理，默认不清理（5 秒后自动继续）: \c"
+    
+    # 使用 read -t 5 实现 5 秒超时，默认不清理
+    clean_confirm="n"
+    read -t 5 -r clean_confirm || true
+    
+    # 规范化输入（如果为空则保持默认值n）
+    clean_confirm=${clean_confirm:-n}
+    
+    # 如果用户输入 y 或 Y，则清理环境
+    if [[ "$clean_confirm" == "y" ]] || [[ "$clean_confirm" == "Y" ]]; then
+        docker_cleanup
+    else
+        echo -e "\n[INFO] 继续使用现有 Docker 环境..."
+    fi
 
     # 进入目录
     info "进入 rl-swarm-vps 目录..."
