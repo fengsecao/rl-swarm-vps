@@ -247,7 +247,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                     f"Already finished round: {round_num}. Next check in {check_backoff}s."
                 )
                 time.sleep(check_backoff)
-                check_backoff = min(check_backoff * 2, max_check_interval)
+                check_backoff = check_interval
 
             if round_num == self.max_round - 1:
                 return
