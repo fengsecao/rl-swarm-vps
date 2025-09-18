@@ -115,13 +115,13 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
 
     def _get_my_rewards(self, signal_by_agent):
         if len(signal_by_agent) == 0:
-            return 0
+            return 1  # 即使没有其他智能体，也给予基础奖励
         if self.peer_id in signal_by_agent:
             my_signal = signal_by_agent[self.peer_id]
         else:
             my_signal = 0
-        my_signal = (my_signal + 1) * (my_signal > 0) + my_signal * (my_signal <= 0)
-        return my_signal
+        # 确保每轮至少获得1的基础奖励
+        return max(my_signal, 1)
 
     def _try_submit_to_chain(self, signal_by_agent):
         elapsed_time_seconds = time.time() - self.time_since_submit
@@ -146,7 +146,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                     self.batched_signals = 0.0
                     # 奖励提交成功后清空持久化存储
                     self._save_pending_rewards(0.0)
-                    
+                     
                     # 提交获胜者
                     if len(signal_by_agent) > 0:
                         max_agent, max_signal = max(
@@ -161,7 +161,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                         self.coordinator.submit_winners(
                             self.state.round, [self.peer_id], self.peer_id
                         )
-                    
+                     
                     self.time_since_submit = time.time()
                     self.submitted_this_round = True
             except Exception as e:
