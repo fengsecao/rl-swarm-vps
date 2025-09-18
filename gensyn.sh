@@ -1,85 +1,82 @@
 #!/bin/bash
-set -euo pipefail
 
-log_file="./deploy_rl_swarm_vps.log"
-max_retries=10
-retry_count=0
+ENV_VAR="RL_SWARM_IP"
 
-info() {
-    echo -e "[$(date +"%Y-%m-%d %T")] [INFO] $*" | tee -a "$log_file"
-}
+# 根据操作系统选择环境变量配置文件
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS
+  ENV_FILE=~/.zshrc
+  SED_OPTION="''"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  # Ubuntu/Linux
+  if [ -f ~/.bashrc ]; then
+    ENV_FILE=~/.bashrc
+  elif [ -f ~/.zshrc ]; then
+    ENV_FILE=~/.zshrc
+  else
+    ENV_FILE=~/.profile
+  fi
+  SED_OPTION=""
+else
+  # 其他系统默认使用 bashrc
+  ENV_FILE=~/.bashrc
+  SED_OPTION=""
+fi
 
-error() {
-    echo -e "[$(date +"%Y-%m-%d %T")] [ERROR] $*" >&2 | tee -a "$log_file"
-    if [ $retry_count -lt $max_retries ]; then
-        retry_count=$((retry_count+1))
-        info "自动重试 ($retry_count/$max_retries)..."
-        exec "$0" "$@"
-    else
-        echo -e "[$(date +"%Y-%m-%d %T")] [ERROR] 达到最大重试次数 ($max_retries 次)，请手动重启 Docker 并检查环境" >&2 | tee -a "$log_file"
-        exit 1
+echo "🔍 检测环境变量配置文件: $ENV_FILE"
+
+# 检测并删除 RL_SWARM_IP 环境变量
+if grep -q "^export $ENV_VAR=" "$ENV_FILE"; then
+  echo "⚠️ 检测到 $ENV_VAR 环境变量，正在删除..."
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS 使用 sed -i ''
+    sed -i '' "/^export $ENV_VAR=/d" "$ENV_FILE"
+  else
+    # Linux 使用 sed -i
+    sed -i "/^export $ENV_VAR=/d" "$ENV_FILE"
+  fi
+  echo "✅ 已删除 $ENV_VAR 环境变量"
+else
+  echo "ℹ️ 未检测到 $ENV_VAR 环境变量，无需删除"
+fi
+
+
+
+# 切换到脚本所在目录（假设 go.sh 在项目根目录）
+cd "$(dirname "$0")"
+
+# 激活虚拟环境并执行 auto_run.sh
+if [ -d ".venv" ]; then
+  echo "🔗 正在激活虚拟环境 .venv..."
+  source .venv/bin/activate
+else
+  echo "⚠️ 未找到 .venv 虚拟环境，正在自动创建..."
+  if command -v python3.10 >/dev/null 2>&1; then
+    PYTHON=python3.10
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
+  else
+    echo "❌ 未找到 Python 3.12 或 python3，请先安装。"
+    exit 1
+  fi
+  $PYTHON -m venv .venv
+  if [ -d ".venv" ]; then
+    echo "✅ 虚拟环境创建成功，正在激活..."
+    source .venv/bin/activate
+    # 检查并安装web3
+    if ! python -c "import web3" 2>/dev/null; then
+      echo "⚙️ 正在为虚拟环境安装 web3..."
+      pip install web3
     fi
-}
+  else
+    echo "❌ 虚拟环境创建失败，跳过激活。"
+  fi
+fi
 
-# 检查 Docker 是否安装
-check_docker() {
-    if ! command -v docker &> /dev/null; then
-        error "Docker 未安装，请先安装 Docker (https://www.docker.com)"
-    fi
-    if ! command -v docker-compose &> /dev/null; then
-        error "Docker Compose 未安装，请先安装 Docker Compose"
-    fi
-}
-
-# 打开 Docker
-start_docker() {
-    info "正在启动 Docker..."
-    if ! open -a Docker; then
-        error "无法启动 Docker 应用，请检查 Docker 是否安装或手动启动"
-    fi
-    # 等待 Docker 启动
-    info "等待 Docker 启动完成..."
-    sleep 10
-    # 检查 Docker 是否运行
-    if ! docker info &> /dev/null; then
-        error "Docker 未正常运行，请检查 Docker 状态"
-    fi
-}
-
-# 运行 Docker Compose 容器
-run_docker_compose() {
-    local attempt=1
-    local max_attempts=$max_retries
-    while [ $attempt -le $max_attempts ]; do
-        info "尝试运行容器 swarm-cpu (第 $attempt 次)..."
-        if docker-compose up swarm-cpu; then
-            info "容器 swarm-cpu 运行成功"
-            return 0
-        else
-            info "Docker 构建失败，重试中..."
-            sleep 2
-            ((attempt++))
-        fi
-    done
-    error "Docker 构建超过最大重试次数 ($max_attempts 次)"
-}
-
-# 主逻辑
-main() {
-    # 检查 Docker 环境
-    check_docker
-
-    # 启动 Docker
-    start_docker
-
-    # 进入目录
-    info "进入 rl-swarm-vps 目录..."
-    cd ~/rl-swarm-vps || error "进入 rl-swarm-vps 目录失败"
-
-    # 运行容器
-    info "🚀 运行 swarm-cpu 容器..."
-    run_docker_compose
-}
-
-# 执行主逻辑
-main "$@"
+# 执行 auto_run.sh
+if [ -f "./auto_run.sh" ]; then
+  echo "🚀 执行 ./auto_run.sh ..."
+  ./auto_run.sh
+else
+  echo "❌ 未找到 auto_run.sh，无法执行。"
+fi
