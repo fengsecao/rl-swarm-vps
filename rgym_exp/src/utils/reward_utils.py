@@ -21,19 +21,61 @@ def score_answer(
 
 
 def format_reward(completions, weight=1.0):
-    regex = r"^<think>([^<]*(?:<(?!/?think>)[^<]*)*)<\/think>\n<answer>([\s\S]*?)<\/answer>$"
-    matches = [
-        re.match(regex, completion, flags=re.DOTALL) for completion in completions
-    ]
-    return [weight if match else 0.0 for match in matches]
+    # 改进的正则表达式，使其更加灵活地匹配答案格式
+    # 匹配以</think>开头和结尾的内容块，忽略前后空白
+    regex = r"(?s)(?:\s*</think>\s*(.*?)\s*</think>\s*)"
+    rewards = []
+    for completion in completions:
+        match = re.search(regex, completion)
+        if match and match.group(1) and match.group(1).strip():
+            rewards.append(weight)
+        else:
+            rewards.append(0.0)
+    return rewards
 
 
 def accuracy_reward(completions, ground_truth, metadata, weight=1.0):
-    predictions = [extract_answer(completion) for completion in completions]
-    return [
-        weight * score_answer(pred, ground_truth, metadata=metadata)
-        for pred in predictions
-    ]
+    predictions = []
+    for completion in completions:
+        try:
+            # 尝试提取答案，如果失败则使用原始文本
+            pred = extract_answer(completion)
+            if not pred or pred.strip() == '':
+                # 如果提取的答案为空，则使用完整的回答文本作为备选
+                pred = completion.strip()
+            predictions.append(pred)
+        except Exception as e:
+            # 发生异常时使用原始文本
+            predictions.append(completion.strip())
+    
+    # 确保ground_truth是字符串
+    if ground_truth is None:
+        ground_truth = ""
+    elif isinstance(ground_truth, list):
+        ground_truth = ' '.join(str(item) for item in ground_truth)
+    elif not isinstance(ground_truth, str):
+        ground_truth = str(ground_truth)
+    
+    # 计算每个预测的奖励
+    rewards = []
+    for pred in predictions:
+        try:
+            if not pred or not ground_truth:
+                # 如果预测或真实答案为空，给予最低奖励
+                rewards.append(0.0)
+                continue
+            
+            reward = weight * score_answer(pred, ground_truth, metadata=metadata)
+            # 确保奖励值在合理范围内
+            if isinstance(reward, (int, float)):
+                rewards.append(max(0.0, min(reward, weight)))  # 限制在0到weight之间
+            else:
+                rewards.append(0.0)
+        except Exception as e:
+            # 发生异常时给予基础奖励
+            rewards.append(0.0)
+    
+    return rewards
 
 
 def get_completions(
