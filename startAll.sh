@@ -112,7 +112,7 @@ wai_height=$upper_height  # wai高度保持不变
 # sleep 30  # 额外等待确保完全启动
 
 # 4. 启动gensyn（上层左侧，距离左边界30px）
-osascript -e 'tell app "Terminal" to do script "until docker info >/dev/null 2>&1; do sleep 1; done && cd ~/rl-swarm-vps && ./gensyn.sh"'
+osascript -e 'tell app "Terminal" to do script "cd ~/rl-swarm-vps && ./gensyn.sh"'
 sleep 1
 arrange_window "gensyn" $((x1+30)) $y1 $upper_item_width $upper_height
 
