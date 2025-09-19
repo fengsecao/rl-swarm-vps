@@ -46,10 +46,10 @@ error() {
         retry_count=$((retry_count+1))
         info "自动重试 ($retry_count/$max_retries)..."
         exec "$0" "$@"
-    else
+  else
         echo -e "[$(date +"%Y-%m-%d %T")] [ERROR] 达到最大重试次数 ($max_retries 次)，请手动重启 Docker 并检查环境" >&2 | tee -a "$log_file"
-        exit 1
-    fi
+    exit 1
+  fi
 }
 
 # 检查 Docker 是否安装

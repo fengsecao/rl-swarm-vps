@@ -27,7 +27,7 @@ class HivemindNode:
     round_num: int = 0
     stage_num: int = 0
 
-    out_expiration: int = 60 * 60 * 8  # hours
+    out_expiration: int = 60 * 60 * 4  # hours
 
     @staticmethod
     def coordinator(*args, **kwargs):

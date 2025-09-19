@@ -153,7 +153,7 @@ def send_via_api(org_id, method, args):
     payload = {"orgId": org_id} | args
 
     # Send the POST request.
-    response = requests.post(url, json=payload, timeout=30)
+    response = requests.post(url, json=payload)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
 

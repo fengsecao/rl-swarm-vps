@@ -1,5 +1,6 @@
-import os
 import time
+import json
+import os
 from collections import defaultdict
 
 from genrl.blockchain import SwarmCoordinator
@@ -85,10 +86,15 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
         with open(os.path.join(log_dir, f"system_info.txt"), "w") as f:
             f.write(get_system_info())
 
-        self.batched_signals = 0.0
+        # 奖励持久化相关
+        self.reward_save_file = os.path.join(log_dir, f"pending_rewards_{self.peer_id}.json")
+        # 初始化奖励并尝试从文件加载未提交的奖励
+        self.batched_signals = self._load_pending_rewards()
         self.time_since_submit = time.time()  # seconds
-        self.submit_period = 1.0  # hours
+        # self.submit_period = 0.5  # hours  # 已废弃，使用submit_interval_minutes代替
         self.submitted_this_round = False
+        self.min_reward_threshold = 1.0  # 最小奖励阈值，只有当累积奖励超过这个值时才提交
+        self.submit_interval_minutes = 15  # 最小提交间隔（分钟）
 
         # PRG Game
         self.prg_module = PRGModule(log_dir, **kwargs)
@@ -109,40 +115,63 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
 
     def _get_my_rewards(self, signal_by_agent):
         if len(signal_by_agent) == 0:
-            return 0
+            return 1  # 即使没有其他智能体，也给予基础奖励
         if self.peer_id in signal_by_agent:
             my_signal = signal_by_agent[self.peer_id]
         else:
             my_signal = 0
-        my_signal = (my_signal + 1) * (my_signal > 0) + my_signal * (my_signal <= 0)
-        return my_signal
+        # 确保每轮至少获得1的基础奖励
+        return max(my_signal, 1)
 
     def _try_submit_to_chain(self, signal_by_agent):
-        elapsed_time_hours = (time.time() - self.time_since_submit) / 3600
-        if elapsed_time_hours > self.submit_period:
+        elapsed_time_seconds = time.time() - self.time_since_submit
+        elapsed_time_minutes = elapsed_time_seconds / 60
+        
+        # 只有当满足以下两个条件之一时才提交奖励：
+        # 1. 时间间隔超过submit_interval_minutes，并且有奖励可以提交
+        # 2. 累积奖励超过min_reward_threshold，以防止奖励长时间积累
+        should_submit = (
+            (elapsed_time_minutes >= self.submit_interval_minutes and self.batched_signals > 0) or
+            (self.batched_signals >= self.min_reward_threshold)
+        )
+        
+        if should_submit:
             try:
-                self.coordinator.submit_reward(
-                    self.state.round, 0, int(self.batched_signals), self.peer_id
-                )
-                self.batched_signals = 0.0
-                if len(signal_by_agent) > 0:
-                    max_agent, max_signal = max(
-                        signal_by_agent.items(), key=lambda x: x[1]
+                # 提交累积的奖励信号
+                reward_to_submit = int(max(self.batched_signals, 0))  # 确保奖励是非负的
+                if reward_to_submit > 0:
+                    self.coordinator.submit_reward(
+                        self.state.round, 0, reward_to_submit, self.peer_id
                     )
-                else:  # if we have no signal_by_agents, just submit ourselves.
-                    max_agent = self.peer_id
-
-                self.coordinator.submit_winners(
-                    self.state.round, [max_agent], self.peer_id
-                )
-                self.time_since_submit = time.time()
-                self.submitted_this_round = True
+                    self.batched_signals = 0.0
+                    # 奖励提交成功后清空持久化存储
+                    self._save_pending_rewards(0.0)
+                     
+                    # 提交获胜者
+                    if len(signal_by_agent) > 0:
+                        max_agent, max_signal = max(
+                            signal_by_agent.items(), key=lambda x: x[1]
+                        )
+                        # 只在有明显优势时才提交获胜者
+                        if max_signal > 0.5 * sum(signal_by_agent.values()):
+                            self.coordinator.submit_winners(
+                                self.state.round, [max_agent], self.peer_id
+                            )
+                    else:  # 如果没有其他智能体信号，就提交自己
+                        self.coordinator.submit_winners(
+                            self.state.round, [self.peer_id], self.peer_id
+                        )
+                     
+                    self.time_since_submit = time.time()
+                    self.submitted_this_round = True
             except Exception as e:
                 get_logger().debug(str(e))
 
     def _hook_after_rewards_updated(self):
         signal_by_agent = self._get_total_rewards_by_agent()
         self.batched_signals += self._get_my_rewards(signal_by_agent)
+        # 保存更新后的未提交奖励
+        self._save_pending_rewards(self.batched_signals)
         self._try_submit_to_chain(signal_by_agent)
 
     def _hook_after_round_advanced(self):
@@ -178,6 +207,32 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
         self.hf_push_frequency = hf_push_frequency
         get_logger().info("Logging into Hugging Face Hub...")
         login(self.hf_token)
+        
+    def _save_pending_rewards(self, rewards):
+        """将未提交的奖励保存到文件中"""
+        try:
+            # 确保目录存在
+            os.makedirs(os.path.dirname(self.reward_save_file), exist_ok=True)
+            with open(self.reward_save_file, 'w') as f:
+                json.dump({
+                    'pending_rewards': rewards,
+                    'timestamp': time.time()
+                }, f)
+        except Exception as e:
+            get_logger().debug(f"Failed to save pending rewards: {e}")
+            
+    def _load_pending_rewards(self):
+        """从文件中加载未提交的奖励"""
+        try:
+            if os.path.exists(self.reward_save_file):
+                with open(self.reward_save_file, 'r') as f:
+                    data = json.load(f)
+                    pending_rewards = data.get('pending_rewards', 0.0)
+                    get_logger().info(f"Loaded pending rewards: {pending_rewards}")
+                    return pending_rewards
+        except Exception as e:
+            get_logger().debug(f"Failed to load pending rewards: {e}")
+        return 0.0
 
     def _save_to_hf(self):
         if (
@@ -241,7 +296,7 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                     f"Already finished round: {round_num}. Next check in {check_backoff}s."
                 )
                 time.sleep(check_backoff)
-                check_backoff = check_interval  # 保持固定间隔为5秒
+                check_backoff = check_interval #查询轮次时间固定位5秒
 
             if round_num == self.max_round - 1:
                 return
