@@ -37,6 +37,10 @@ else
         # 等待几秒让 Ollama 启动
         echo "⏳ 等待 Ollama 启动完成..."
         sleep 5
+        
+        # 在新窗口中运行 Ollama 模型
+        echo "🧠 正在新窗口启动 llama3.2:1b-instruct-q4_K_M 模型..."
+        open -a Terminal "ollama run llama3.2:1b-instruct-q4_K_M"
     else
         echo "❌ Ollama 下载失败，但继续安装 Dria..."
     fi
