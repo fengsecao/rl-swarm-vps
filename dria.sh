@@ -38,9 +38,14 @@ else
         echo "⏳ 等待 Ollama 启动完成..."
         sleep 5
         
-        # 在新窗口中运行 Ollama 模型
-        echo "🧠 正在新窗口启动 llama3.2:1b-instruct-q4_K_M 模型..."
-        open -a Terminal "ollama run llama3.2:1b-instruct-q4_K_M"
+        # 检查本地是否已安装 llama3.2:1b-instruct-q4_K_M 模型
+        echo "🔍 检查本地是否已安装 llama3.2:1b-instruct-q4_K_M 模型..."
+        if ollama list | grep -q "llama3.2:1b-instruct-q4_K_M"; then
+            echo "✅ 模型已存在，进行下一步"
+        else
+            echo "⏳ 模型不存在，正在下载和安装..."
+            osascript -e 'tell app "Terminal" to do script "ollama run llama3.2:1b-instruct-q4_K_M"'
+        fi
     else
         echo "❌ Ollama 下载失败，但继续安装 Dria..."
     fi
