@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT=$PWD
 
 # GenRL Swarm version to use
-GENRL_TAG="0.1.6"
+GENRL_TAG="0.1.8"
 
 export IDENTITY_PATH
 export GENSYN_RESET_CONFIG
@@ -71,7 +71,7 @@ cleanup() {
     echo_green ">> Shutting down trainer..."
 
     # Remove modal credentials if they exist
-    #rm -r $ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null || true
+    rm -r $ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null || true
 
     # Kill all processes belonging to this script's process group
     kill -- -$$ || true
@@ -92,7 +92,7 @@ cat << "EOF"
     ██   ██ ██            ██      ██     ██ ██   ██ ██   ██ ████  ████
     ██████  ██      █████ ███████ ██  █  ██ ███████ ██████  ██ ████ ██
     ██   ██ ██                 ██ ██ ███ ██ ██   ██ ██   ██ ██  ██  ██
-    ██   ██ ███████       ███████  ███ ███  ██   ██ ██   ██ ██      ██ v0.6.0
+    ██   ██ ███████       ███████  ███ ███  ██   ██ ██   ██ ██      ██ v0.6.1
 
     From Gensyn
 
@@ -241,11 +241,11 @@ export HUGGINGFACE_ACCESS_TOKEN="None"
 if [ -z "${MODEL_NAME:-}" ]; then
     export MODEL_NAME="Qwen/Qwen3-0.6B"
 fi
-echo_green ">> Using model: $MODEL_NAME"
+    echo_green ">> Using model: $MODEL_NAME"
 
 # 3) PRG 游戏：默认参加
 export PRG_GAME=true
-echo_green ">> Playing PRG game: true"
+    echo_green ">> Playing PRG game: true"
 
 
 echo -en $RESET_TEXT
