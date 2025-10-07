@@ -162,10 +162,12 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
     # Docker image already builds it, no need to again.
     if [ -z "$DOCKER" ]; then
         yarn install --immutable
-        echo "Building server"
-        yarn build > "$ROOT/logs/yarn.log" 2>&1
+        echo "Starting development server"
+        yarn dev >> "$ROOT/logs/yarn.log" 2>&1 & # Run in background and log output
+    else
+        # Docker环境下直接在后台启动开发服务器
+        yarn dev >> "$ROOT/logs/yarn.log" 2>&1 &
     fi
-    yarn start >> "$ROOT/logs/yarn.log" 2>&1 & # Run in background and log output
 
     SERVER_PID=$!  # Store the process ID
     echo "Started server process: $SERVER_PID"

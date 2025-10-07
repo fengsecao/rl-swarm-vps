@@ -15,6 +15,26 @@ log() {
   echo "【⏳$(date '+%Y-%m-%d %H:%M:%S')】 $1"
 }
 
+# ====== 🔄 递归清理进程树函数 ======
+cleanup_process_tree() {
+  local parent_pid=$1
+  # 获取所有直接子进程
+  local child_pids=$(pgrep -P $parent_pid)
+  
+  # 递归清理所有子进程
+  for child_pid in $child_pids; do
+    cleanup_process_tree $child_pid
+  done
+  
+  # 检查进程是否存在且是python进程
+  if kill -0 "$parent_pid" 2>/dev/null; then
+    if ps -p "$parent_pid" -o comm= | grep -q python; then
+      log "⚔️ 杀死当前脚本的 python 进程 PID: $parent_pid"
+      kill -9 "$parent_pid" 2>/dev/null || true
+    fi
+  fi
+}
+
 # ====== 🛑 处理 Ctrl+C 退出信号 ======
 cleanup() {
   local mode=$1  # "exit" 或 "restart"
@@ -24,35 +44,56 @@ cleanup() {
     log "🧨 杀死主进程 PID: $RL_PID"
     kill -9 "$RL_PID" 2>/dev/null
   fi
-  # 杀子进程
+  
+  # 使用递归函数清理当前脚本启动的python进程树
+  log "🧨 递归清理当前脚本启动的python进程树..."
   if [ -n "$PY_PID" ] && kill -0 "$PY_PID" 2>/dev/null; then
-    log "⚔️ 杀死 Python 子进程 PID: $PY_PID"
-    kill -9 "$PY_PID" 2>/dev/null
+    log "⚔️ 开始递归清理Python子进程树，根PID: $PY_PID"
+    cleanup_process_tree "$PY_PID"
   fi
-  # 释放端口 3004
+  
+  # 特殊处理MONITOR_PID（如果它不是RL_PID或PY_PID）
+  if [ -n "$MONITOR_PID" ] && [ "$MONITOR_PID" != "$RL_PID" ] && [ "$MONITOR_PID" != "$PY_PID" ] && kill -0 "$MONITOR_PID" 2>/dev/null; then
+    log "⚔️ 杀死监控进程 PID: $MONITOR_PID"
+    kill -9 "$MONITOR_PID" 2>/dev/null || true
+  fi
+  
+  # 释放端口 3004 - 仅在确定是当前脚本占用时释放
   log "🌐 检查并释放端口 3004..."
-  PORT_PID=$(lsof -ti:3004)
-  if [ -n "$PORT_PID" ]; then
-    log "⚠️ 端口 3004 被 PID $PORT_PID 占用，正在释放..."
-    kill -9 "$PORT_PID" 2>/dev/null
-    log "✅ 端口 3004 已释放"
+  # 获取占用端口3004的进程ID
+  PORT_PID_LIST=$(lsof -ti:3004)
+  if [ -n "$PORT_PID_LIST" ]; then
+    # 遍历所有占用端口的进程
+    for PORT_PID in $PORT_PID_LIST; do
+      # 检查该进程是否是当前脚本的子进程或孙进程
+      local is_child=0
+      local current_pid=$PORT_PID
+      
+      # 向上查找进程树，看看是否与PY_PID或RL_PID相关
+      while [ -n "$current_pid" ] && [ "$current_pid" -ne 1 ]; do
+        if [ "$current_pid" = "$PY_PID" ] || [ "$current_pid" = "$RL_PID" ]; then
+          is_child=1
+          break
+        fi
+        # 获取父进程ID
+        current_pid=$(ps -p $current_pid -o ppid= 2>/dev/null | xargs)
+      done
+      
+      # 只有确认是当前脚本的进程才释放
+      if [ $is_child -eq 1 ]; then
+        log "⚠️ 端口 3004 被当前脚本的进程 PID $PORT_PID 占用，正在释放..."
+        kill -9 "$PORT_PID" 2>/dev/null
+        log "✅ 端口 3004 已释放"
+        break  # 只释放一个端口占用即可
+      fi
+    done
+    
+    if [ $is_child -eq 0 ]; then
+      log "✅ 端口 3004 未被当前脚本占用，不释放"
+    fi
   else
     log "✅ 端口 3004 已空闲"
   fi
-  # 清理所有相关 python 进程
-  log "🧨 清理所有相关 python 进程..."
-  pgrep -f "python.*swarm_launcher" | while read pid; do
-    log "⚔️ 杀死 python.swarm_launcher 进程 PID: $pid"
-    kill -9 "$pid" 2>/dev/null || true
-  done
-  pgrep -f "python.*run_rl_swarm" | while read pid; do
-    log "⚔️ 杀死 python.run_rl_swarm 进程 PID: $pid"
-    kill -9 "$pid" 2>/dev/null || true
-  done
-  pgrep -af python | grep Resources | awk '{print $1}' | while read pid; do
-    log "⚔️ 杀死 python+Resources 进程 PID: $pid"
-    kill -9 "$pid" 2>/dev/null || true
-  done
   log "🛑 清理完成"
   if [ "$mode" = "exit" ]; then
     exit 0
