@@ -58,10 +58,10 @@ cleanup() {
     kill -9 "$MONITOR_PID" 2>/dev/null || true
   fi
   
-  # 释放端口 3004 - 仅在确定是当前脚本占用时释放
-  log "🌐 检查并释放端口 3004..."
-  # 获取占用端口3004的进程ID
-  PORT_PID_LIST=$(lsof -ti:3004)
+  # 释放端口 3000 - 仅在确定是当前脚本占用时释放
+  log "🌐 检查并释放端口 3000..."
+  # 获取占用端口3000的进程ID
+  PORT_PID_LIST=$(lsof -ti:3000)
   if [ -n "$PORT_PID_LIST" ]; then
     # 遍历所有占用端口的进程
     for PORT_PID in $PORT_PID_LIST; do
@@ -81,18 +81,18 @@ cleanup() {
       
       # 只有确认是当前脚本的进程才释放
       if [ $is_child -eq 1 ]; then
-        log "⚠️ 端口 3004 被当前脚本的进程 PID $PORT_PID 占用，正在释放..."
+        log "⚠️ 端口 3000 被当前脚本的进程 PID $PORT_PID 占用，正在释放..."
         kill -9 "$PORT_PID" 2>/dev/null
-        log "✅ 端口 3004 已释放"
+        log "✅ 端口 3000 已释放"
         break  # 只释放一个端口占用即可
       fi
     done
     
     if [ $is_child -eq 0 ]; then
-      log "✅ 端口 3004 未被当前脚本占用，不释放"
+      log "✅ 端口 3000 未被当前脚本占用，不释放"
     fi
   else
-    log "✅ 端口 3004 已空闲"
+    log "✅ 端口 3000 已空闲"
   fi
   log "🛑 清理完成"
   if [ "$mode" = "exit" ]; then
