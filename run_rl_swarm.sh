@@ -73,8 +73,19 @@ cleanup() {
     # Remove modal credentials if they exist
     # rm -r $ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null || true
 
-    # Kill all processes belonging to this script's process group
-    kill -- -$$ || true
+    # 优先使用记录的SERVER_PID
+    if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        echo_green ">> Killing server process $SERVER_PID"
+        kill "$SERVER_PID" 2>/dev/null || true
+    fi
+    
+    # 稳健地尝试杀死进程组，先检查进程组是否存在
+    if kill -0 -- -$$ 2>/dev/null; then
+        echo_green ">> Killing process group $$"
+        kill -- -$$ 2>/dev/null || true
+    else
+        echo_green ">> Process group $$ does not exist or already terminated"
+    fi
 
     exit 0
 }
