@@ -17,7 +17,7 @@ export SWARM_CONTRACT="0xFaD7C5e93f28257429569B854151A1B8DCD404c2"
 export PRG_CONTRACT="0x51D4db531ae706a6eC732458825465058fA23a35"
 export HUGGINGFACE_ACCESS_TOKEN="None"
 export PRG_GAME=true
-export MODEL_NAME="Qwen/Qwen3-0.6B"  # 直接设置模型
+export MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct"  # 直接设置模型
 
 # Path to an RSA private key. If this path does not exist, a new key pair will be created.
 # Remove this file if you want a new PeerID.
