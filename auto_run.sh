@@ -29,15 +29,15 @@ cleanup() {
     log "⚔️ 杀死 Python 子进程 PID: $PY_PID"
     kill -9 "$PY_PID" 2>/dev/null
   fi
-  # 释放端口 3000
-  log "🌐 检查并释放端口 3000..."
-  PORT_PID=$(lsof -ti:3000)
+  # 释放端口 3004
+  log "🌐 检查并释放端口 3004..."
+  PORT_PID=$(lsof -ti:3004)
   if [ -n "$PORT_PID" ]; then
-    log "⚠️ 端口 3000 被 PID $PORT_PID 占用，正在释放..."
+    log "⚠️ 端口 3004 被 PID $PORT_PID 占用，正在释放..."
     kill -9 "$PORT_PID" 2>/dev/null
-    log "✅ 端口 3000 已释放"
+    log "✅ 端口 3004 已释放"
   else
-    log "✅ 端口 3000 已空闲"
+    log "✅ 端口 3004 已空闲"
   fi
   # 清理所有相关 python 进程
   log "🧨 清理所有相关 python 进程..."
