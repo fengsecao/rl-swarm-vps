@@ -218,8 +218,6 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
   BOLD='\033[1m'
   NC='\033[0m'
 
-  cd modal-login
-
   echo -e "\n${CYAN}${BOLD}[✓] Installing dependencies with npm. This may take a few minutes, depending on your internet speed...${NC}"
   yarn install --immutable
 
