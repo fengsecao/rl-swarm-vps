@@ -18,6 +18,7 @@ export PRG_CONTRACT="0x51D4db531ae706a6eC732458825465058fA23a35"
 export HUGGINGFACE_ACCESS_TOKEN="None"
 export PRG_GAME=true
 export MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct"  # 直接设置模型
+export CPU_ONLY="${CPU_ONLY:-}"
 
 # Path to an RSA private key. If this path does not exist, a new key pair will be created.
 # Remove this file if you want a new PeerID.

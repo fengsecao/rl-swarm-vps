@@ -35,7 +35,6 @@ class RGRewards:
                             completions[agent][batch_id][node_idx],
                             answers[agent][batch_id][node_idx],
                             metadata[agent][batch_id][node_idx],
-                            include_formatting=True  # 启用格式奖励
                         )
                     )
         return rewards
