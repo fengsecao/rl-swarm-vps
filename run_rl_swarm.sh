@@ -285,6 +285,7 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
       exit 1
   fi
 
+  cd ..
   if [ -f "modal-login/temp-data/userData.json" ]; then
       cd ..
 
