@@ -90,7 +90,7 @@ game_manager:
     initial_peers: ${communications.initial_peers}
     identity_path: ${oc.env:IDENTITY_PATH,null}
     startup_timeout: 120
-    beam_size: 50
+    beam_size: 20
   coordinator:
     _target_: rgym_exp.src.coordinator.ModalSwarmCoordinator
     web3_url: ${blockchain.alchemy_url}
