@@ -287,7 +287,6 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
 
   cd ..
   if [ -f "modal-login/temp-data/userData.json" ]; then
-      cd ..
 
       ORG_ID=$(awk 'BEGIN { FS = "\"" } !/^[ \t]*[{}]/ { print $(NF - 1); exit }' modal-login/temp-data/userData.json)
 
