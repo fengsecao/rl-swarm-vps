@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT=$PWD
 
 # GenRL Swarm version to use
-GENRL_TAG="0.1.9"
+GENRL_TAG="0.1.11"
 
 export IDENTITY_PATH
 export GENSYN_RESET_CONFIG
@@ -259,13 +259,13 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
       sleep 2
   fi
 
-  echo "Building server"
-  yarn build > "$ROOT/logs/yarn.log" 2>&1
+        echo "Building server"
+        yarn build > "$ROOT/logs/yarn.log" 2>&1
   #start
-  yarn start >> "$ROOT/logs/yarn.log" 2>&1 & # Run in background and log output
+    yarn start >> "$ROOT/logs/yarn.log" 2>&1 & # Run in background and log output
 
   SERVER_PID=$!
-  echo "Started server process: $SERVER_PID"
+    echo "Started server process: $SERVER_PID"
 
   MAX_WAIT=30
   for ((i = 0; i < MAX_WAIT; i++)); do
@@ -402,7 +402,7 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
               lt --port $PORT >localtunnel_output.log 2>&1 &
               TUNNEL_PID=$!
 
-              sleep 5
+    sleep 5
               URL=$(grep -o "https://[^ ]*" localtunnel_output.log | head -n1)
 
               if [ -n "$URL" ]; then
@@ -527,10 +527,10 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
               if [ -n "$NGROK_URL" ]; then
                   FORWARDING_URL="$NGROK_URL"
                   return 0
-              else
+        else
                   echo -e "${RED}${BOLD}[✗] Failed to get ngrok URL (method 2).${NC}"
                   kill $TUNNEL_PID 2>/dev/null || true
-              fi
+        fi
 
               echo -e "\n${CYAN}${BOLD}[✓] Starting ngrok with method 3...${NC}"
               ngrok http "$PORT" --log=stdout >ngrok_output.log 2>&1 &
@@ -541,7 +541,7 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
               if [ -n "$NGROK_URL" ]; then
                   FORWARDING_URL="$NGROK_URL"
                   return 0
-              else
+    else
                   echo -e "${RED}${BOLD}[✗] Failed to get ngrok URL (method 3).${NC}"
                   kill $TUNNEL_PID 2>/dev/null || true
               fi
@@ -576,35 +576,35 @@ if [ "$CONNECT_TO_TESTNET" = true ]; then
           echo "3. It will show a link similar to this: https://xxxx.ngrok-free.app"
           echo "4. Visit this website and login using your email, this website may take 30 sec to load."
           echo "5. Now go back to the previous tab, you will see everything will run fine"
-      fi
+    fi
 
-      cd ..
+    cd ..
 
       echo -e "\n${CYAN}${BOLD}[↻] Waiting for you to complete the login process...${NC}"
-      while [ ! -f "modal-login/temp-data/userData.json" ]; do
+    while [ ! -f "modal-login/temp-data/userData.json" ]; do
           sleep 3
-      done
+    done
 
       echo -e "${GREEN}${BOLD}[✓] Success! The userData.json file has been created. Proceeding with remaining setups...${NC}"
       rm -f server.log localtunnel_output.log cloudflared_output.log ngrok_output.log
 
-      ORG_ID=$(awk 'BEGIN { FS = "\"" } !/^[ \t]*[{}]/ { print $(NF - 1); exit }' modal-login/temp-data/userData.json)
+    ORG_ID=$(awk 'BEGIN { FS = "\"" } !/^[ \t]*[{}]/ { print $(NF - 1); exit }' modal-login/temp-data/userData.json)
 
   fi
 
   echo -e "\n${CYAN}${BOLD}[✓] ORG_ID has been set to: ${BOLD}$ORG_ID\n${NC}"
 
   echo -e "${CYAN}${BOLD}[✓] Waiting for API key to become activated...${NC}"
-  while true; do
-      STATUS=$(curl -s "http://localhost:3000/api/get-api-key-status?orgId=$ORG_ID")
-      if [[ "$STATUS" == "activated" ]]; then
+    while true; do
+        STATUS=$(curl -s "http://localhost:3000/api/get-api-key-status?orgId=$ORG_ID")
+        if [[ "$STATUS" == "activated" ]]; then
           echo -e "${GREEN}${BOLD}[✓] Success! API key is activated! Proceeding...\n${NC}"
-          break
-      else
+            break
+        else
           echo "[↻] Waiting for API key to be activated..."
-          sleep 5
-      fi
-  done
+            sleep 5
+        fi
+    done
 
   #-----------------------use proxy port  end--------------------------
 fi

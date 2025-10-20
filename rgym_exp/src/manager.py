@@ -141,53 +141,53 @@ class SwarmGameManager(BaseGameManager, DefaultGameManagerMixin):
                 # 提交累积的奖励信号
                 reward_to_submit = int(max(self.batched_signals, 0))  # 确保奖励是非负的
                 if reward_to_submit > 0:
-                    self.coordinator.submit_reward(
+                self.coordinator.submit_reward(
                         self.state.round, 0, reward_to_submit, self.peer_id
-                    )
-                    self.batched_signals = 0.0
+                )
+                self.batched_signals = 0.0
                     # 奖励提交成功后清空持久化存储
                     self._save_pending_rewards(0.0)
                      
                     # 提交获胜者
-                    if len(signal_by_agent) > 0:
-                        max_agent, max_signal = max(
-                            signal_by_agent.items(), key=lambda x: x[1]
-                        )
+                if len(signal_by_agent) > 0:
+                    max_agent, max_signal = max(
+                        signal_by_agent.items(), key=lambda x: x[1]
+                    )
                         # 只在有明显优势时才提交获胜者
                         if max_signal > 0.5 * sum(signal_by_agent.values()):
-                            self.coordinator.submit_winners(
-                                self.state.round, [max_agent], self.peer_id
-                            )
+                self.coordinator.submit_winners(
+                    self.state.round, [max_agent], self.peer_id
+                )
                     else:  # 如果没有其他智能体信号，就提交自己
                         self.coordinator.submit_winners(
                             self.state.round, [self.peer_id], self.peer_id
                         )
                      
-                    self.time_since_submit = time.time()
-                    self.submitted_this_round = True
+                self.time_since_submit = time.time()
+                self.submitted_this_round = True
             except Exception as e:
                 get_logger().debug(str(e))
 
     def _hook_after_rewards_updated(self):
-        signal_by_agent = self._get_total_rewards_by_agent()
-        self.batched_signals += self._get_my_rewards(signal_by_agent)
+            signal_by_agent = self._get_total_rewards_by_agent()
+            self.batched_signals += self._get_my_rewards(signal_by_agent)
         # 保存更新后的未提交奖励
         self._save_pending_rewards(self.batched_signals)
         self._try_submit_to_chain(signal_by_agent)
 
     def _hook_after_round_advanced(self):
-        if self.prg_game:
-            # TODO: Ideally I think the judge client request question bit should come in the manager and the trainer should be doing only PyTorch-y stuff, 
-            # but I have kept it consistent with the evaluate function for now.
-            prg_history_dict = self.prg_module.prg_history_dict
-            results_dict = self.trainer.play_prg_game_logits(prg_history_dict)
-            self.prg_module.play_prg_game(results_dict, self.peer_id)
+            if self.prg_game:
+                # TODO: Ideally I think the judge client request question bit should come in the manager and the trainer should be doing only PyTorch-y stuff, 
+                # but I have kept it consistent with the evaluate function for now.
+                prg_history_dict = self.prg_module.prg_history_dict
+                results_dict = self.trainer.play_prg_game_logits(prg_history_dict)
+                self.prg_module.play_prg_game(results_dict, self.peer_id)
 
         self._save_to_hf()
 
         # Try to submit to chain again if necessary, but don't update our signal twice
         if not self.submitted_this_round:
-            signal_by_agent = self._get_total_rewards_by_agent()
+                signal_by_agent = self._get_total_rewards_by_agent()
             self._try_submit_to_chain(signal_by_agent)
 
         # Reset flag for next round

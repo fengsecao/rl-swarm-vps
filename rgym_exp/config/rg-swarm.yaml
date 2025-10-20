@@ -51,7 +51,7 @@ game_manager:
   run_mode: "train_and_evaluate"
   bootnodes: ${communications.initial_peers}
   prg_game_config: ${prg_game_config}
-  game_state:
+  game_state: 
     _target_: genrl.state.game_state.GameState
     round: 0
     stage: 0
@@ -69,7 +69,7 @@ game_manager:
     _target_: rgym_exp.src.trainer.GRPOTrainerModule
     models:
       - _target_: transformers.AutoModelForCausalLM.from_pretrained
-        pretrained_model_name_or_path: ${oc.env:MODEL_NAME, ${gpu_model_choice:${default_large_model_pool},${default_small_model_pool}}}
+        pretrained_model_name_or_path: ${oc.env:MODEL_NAME, ${gpu_model_choice:${default_large_model_pool},${default_small_model_pool}}} 
     config:
       _target_: genrl.trainer.grpo_trainer.GRPOTrainerConfig
       dtype: ${training.dtype}
@@ -104,7 +104,7 @@ game_manager:
     modal_proxy_url: ${blockchain.modal_proxy_url}
     swarm_coordinator_abi_json: ${blockchain.swarm_coordinator_abi_path}
 
-default_large_model_pool:
+default_large_model_pool: 
   - nvidia/AceInstruct-1.5B
   - dnotitia/Smoothie-Qwen3-1.7B
   - Gensyn/Qwen2.5-1.5B-Instruct

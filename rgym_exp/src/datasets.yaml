@@ -44,7 +44,7 @@ datasets:
   # BrainF***
   - name: bf
     weight: 1
-    config:
+    config: 
       difficulty: 1
       seed: 1238
       size: 500
@@ -58,7 +58,7 @@ datasets:
       p_zero: 0.25
       seed: 1236
       size: 500
-
+      
   # Calendar arithmetic for date calculations
   - name: calendar_arithmetic
     weight: 1
@@ -78,10 +78,10 @@ datasets:
       max_terms: 6
       min_num_decimal_places: 1
       max_num_decimal_places: 3
-      precision: 5
+      precision: 5  
       seed: 1235
       size: 500
-
+      
   # Fraction simplification problems
   - name: fraction_simplification
     weight: 1
@@ -93,7 +93,7 @@ datasets:
       styles: ["plain", "latex_frac", "latex_dfrac"]
       seed: 1236
       size: 500
-
+      
   # Logic puzzles
   - name: propositional_logic
     weight: 1
